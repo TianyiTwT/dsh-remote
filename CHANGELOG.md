@@ -2,6 +2,34 @@
 
 All notable changes to **dsh-remote**.
 
+## 0.8.28 — 2026-09-29
+### 新功能：插件页成为配置中心（机器列表 + 端口映射，新增/编辑用弹窗）
+
+用户要求：既然插件在 Plugins 页有配置位，就把「添加主机」「端口映射」都放到那里，
+并且用列表 + 点按钮开弹窗，而不是把所有字段铺在页面上。
+
+- **插件页配置位（`plugins.bundle.config`，按包名 key）**：注册在 Plugins →
+  dsh-remote 的详情页。旧 harness / 该 slot 不存在时安静跳过（两层 try），
+  一个可选页面不会变成启动故障。
+- **机器列表**：逐行显示已保存的机器（名称、`user@host:port`、ssh-config/当前/密码/
+  钥匙串/跳板机徽章、别名解析警告），行内是「设为当前 / 编辑 / 删除」；右上「添加机器」开弹窗。
+- **端口映射列表**：方向 + `127.0.0.1:本地 → 目标:端口` + `[auto]`，行内「启动/停止、删除」；
+  右上「添加转发」开弹窗（方向用 0.8.26 的 MenuSelect）。
+- **新增/编辑改用弹窗**（`ModalShell`，照 primitives `Modal.module.css`：layer-2 表面、
+  `--dsw-radius-panel`、prominent 阴影、22/14/12/24 头部、右对齐底部）：主机表单含
+  主机/名称/别名/端口/用户/密码 + **默认收起的高级配置**（私钥、Passphrase、默认工作区、
+  HostKey、agent/keyboard-interactive、跳板机），底部「测试连接 / 取消 / 保存」。
+- **表单外观对齐 harness 的 `SettingsForm`**（逐条照抄 settings-form 的 CSS）：字段 =
+  13px/500 标题 + 全宽控件 + 可选 12px 说明，字段间 0.5px 分隔线；输入框 34px、
+  `0.5px --dsw-alias-border-l4`、`bg-layer-3`、focus 只换描边色；**保存按钮是
+  `label-primary` 底 + `bg-layer-3` 字**（harness 表单就是这样，不是 button-primary-fill）。
+- **设置页复用同一个组件**：原先两处实现两套样式，现在设置页只剩一行 `<MachineRegistry />`。
+
+**验证（隔离 DSH_HOME + `@deepseek-ai/dsh@0.2.0-rc.2`，Chrome CDP）**：
+Plugins → dsh-remote 打开后**列表页 0 个输入框**，有「添加机器 / 添加转发」与两个列表；
+点「添加机器」弹出对话框（标题「添加机器」、5 个基础字段、含保存）。设置页同组件正常。
+`npm test` 212/212、`node check.mjs` OK。
+
 ## 0.8.27 — 2026-09-29
 ### 修复：菜单圆角与宽度（0.8.26 的"药丸"观感）
 
