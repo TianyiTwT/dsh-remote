@@ -2,6 +2,48 @@
 
 All notable changes to **dsh-remote**.
 
+## 0.8.25 — 2026-09-29
+### UI：工作目录选择器与设置页改用 DSH 自己的设计语言（配图反馈"有点丑"）
+
+**动机**：用户截图反馈「选择工作目录」对话框不像 DSH——按钮是一圈 1px 描边的白框、
+tab 是两块描边方块（选中的填成纯黑）、输入框带蓝色发光 focus ring、底部还挂着
+「⭐ Star dsh-remote · 反馈 / 提 issue」一行，整体像嵌进 harness 的网页表单。
+
+**做法：不新增依赖，按 harness 自己的 primitives 逐条对齐。** 度量与颜色取自
+`@deepseek-ai/dsh-client-ui-primitives` 的
+`Button.module.css` / `Input.module.css` / `SegmentedControl.module.css` /
+`Menu.module.css` / `MenuSurface.module.css` / `Modal.module.css`：
+
+- **控件尺度**：紧凑控件 28px（sm 按钮）/ 输入框 32px，圆角
+  `--dsw-radius-sm` / `--dsw-radius-md`；与输入框同行的按钮取输入框高度（32px），
+  不再出现 28px 按钮贴在 32px 输入框旁的错位。
+- **按钮**：默认 ghost（无描边，hover 用 `--dsw-alias-interactive-bg-hover`，
+  active 用 `-active`），次要动作用 outline（**0.5px** `--dsw-alias-border-l3`），
+  主按钮用 `--dsw-alias-button-primary-fill` +
+  `--dsw-alias-label-primary-foreground`，hover 走真正的
+  `--dsw-alias-button-primary-hover`（不再用 opacity 假装 hover）。
+- **输入框**：`0.5px` `--dsw-alias-border-l4` + `layer-1` 底，focus **只换描边色**
+  （`--dsw-alias-state-business-primary`），去掉发光 ring——这正是 primitives 的行为。
+- **分段控件**（本机 / 远程）：轨道是 hover 填充色、选中项是浮起的 `layer-1`
+  药丸 + `--dsw-elevation-soft`，不再是"选中就填成纯黑方块"。
+- **弹层**（机器下拉 / 路径补全 / 右键菜单）：走 harness 的菜单材质
+  `--dsw-menu-surface-fill` + `--dsw-menu-backdrop-filter` +
+  `--dsw-elevation-prominent`，行高 28px、圆角 `--dsw-radius-sm`。
+- **对话框**：`layer-2` 表面 + `--dsw-radius-panel` + `--dsw-elevation-prominent`，
+  遮罩用 `--dsw-alias-bg-mask-1` + `--dsw-mask-blur`；结构改成
+  header（16px/500 标题 + 28px ghost 关闭）/ body / footer
+  （左侧 caption、右侧动作），与 harness 的 Modal 一致。
+- **减法**：删掉底部「⭐ Star dsh-remote · 反馈 / 提 issue」整行（相应 i18n key 一并移除）；
+  「高级配置」原来的手画虚线框在无描边基座上会退回浏览器默认 3px dashed，
+  改成 DSH 的 disclosure 行（ghost + 分隔线 + 文案自带的 ▼/▲）。
+- 顺带修掉一处 *fill 当文字色*：设置页折叠标题在展开时用
+  `--dsw-alias-button-primary-fill` 当文字色，改为 `--dsw-alias-label-primary`。
+
+**验证（隔离 DSH_HOME + `@deepseek-ai/dsh@0.2.0-rc.2`，Chrome CDP 截图，非在用实例）**：
+浅色与深色两套主题下逐一核对——深色主题下 primary 填充是近白 `#f9fafb`、
+标签是近黑 `#0f1115`，标签/描边/菜单材质均随主题正确翻转；
+`npm test` 212/212、`node check.mjs` OK（含 *fill 不得当文字色* 的静态闸门）。
+
 ## 0.8.24 — 2026-09-29
 ### 修复：dsh 0.2.x 上安装被直接拒绝（`incompatible-version`）——peer 范围只允许 0.1.x
 
