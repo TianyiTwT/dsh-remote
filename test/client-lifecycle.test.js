@@ -98,7 +98,7 @@ function loadClient(protocol = 'https:', platform = 'Linux x86_64') {
   return { plugin, requests, effects, runEffects: () => effects.forEach((fn) => fn()), store, localStorage }
 }
 
-function createHost(seats = [SETTINGS]) {
+function createHost(seats = [HERO]) {
   const slotsAvailable = dependencies(seats.map((name) => [name, true]))
   const services = dependencies()
   const registrations = new Map()
@@ -184,7 +184,7 @@ test('client hard dependencies are slots and locale only', () => {
 
 test('native right-sidebar attaches late, opens a session-scoped remote file, and disposes', (t) => {
   const { plugin } = loadClient('dsh-app:')
-  const host = createHost([SETTINGS, 'sidebar.right.pane.tab'])
+  const host = createHost([HERO, 'sidebar.right.pane.tab'])
   t.after(() => host.ctx.dispose())
   plugin.apply(host.ctx)
   const types = new Map()
@@ -210,7 +210,7 @@ test('native right-sidebar attaches late, opens a session-scoped remote file, an
   assert.equal(types.get('dsh-remote/file').title(address), '中文 #?.md')
   host.services.remove('sidebarRightTabs')
   assert.equal(types.size, 0)
-  assert.deepEqual([...host.registrations.keys()], [SETTINGS])
+  assert.deepEqual([...host.registrations.keys()], [HERO])
 })
 
 for (const protocol of ['https:', 'dsh-app:']) {
@@ -390,66 +390,60 @@ test('non-windows hosts keep POSIX paths (they are valid local paths there)', (t
   assert.deepEqual([...healing.props.evictStray('/home/os/IsaacLab')], ['/home/os/IsaacLab'])
 })
 
-test('settings register at order 40 without sessions, workspace, or better-sidebar', (t) => {
+test('the settings page is removed: only the directory seats register', (t) => {
   const { plugin } = loadClient()
   const host = createHost()
   t.after(() => host.ctx.dispose())
   plugin.apply(host.ctx)
   assert.deepEqual([...host.services.values.keys()], ['slots', 'locale'])
-  assert.deepEqual([...host.registrations.keys()], [SETTINGS])
-  const settings = host.registrations.get(SETTINGS)
-  assert.equal(settings.meta.id, 'dsh-remote')
-  assert.equal(settings.meta.order, 40)
-  assert.equal(settings.meta.label(), host.dictionaries.get('dsh-remote').en['settings.title'])
-  assert.equal(typeof settings.render().type, 'function', 'settings exposes a renderable component')
+  assert.deepEqual([...host.registrations.keys()], [HERO])
+  assert.equal(host.registrations.get(HERO).meta.priority, -100)
+  assert.equal(typeof host.registrations.get(HERO).render, 'function', 'the seat exposes a renderable component')
+  assert.equal(host.registrations.get(SETTINGS), undefined, 'settings.section must no longer be registered')
   assert.ok(host.injections.some((names) => names.length === 1 && names[0] === 'sessions'))
   assert.ok(host.injections.some((names) => names.length === 1 && names[0] === 'betterSidebar'))
   host.ctx.dispose()
   assert.equal(host.registrations.size, 0)
   assert.equal(host.dictionaries.size, 0, 'locale dictionary is disposed with the plugin')
 })
-
-test('settings can arrive after apply and remount without duplicate registrations', (t) => {
+test('a directory seat can arrive after apply and remount without duplicate registrations', (t) => {
   const { plugin } = loadClient()
   const host = createHost([])
   t.after(() => host.ctx.dispose())
   plugin.apply(host.ctx)
   assert.equal(host.registrations.size, 0)
-  host.slotsAvailable.set(SETTINGS, true)
+  host.slotsAvailable.set(HERO, true)
   assert.equal(host.registrations.size, 1)
-  host.slotsAvailable.remove(SETTINGS)
+  host.slotsAvailable.remove(HERO)
   assert.equal(host.registrations.size, 0)
-  host.slotsAvailable.set(SETTINGS, true)
-  assert.equal(host.registrations.get(SETTINGS).meta.order, 40)
+  host.slotsAvailable.set(HERO, true)
+  assert.equal(host.registrations.get(HERO).meta.priority, -100)
 })
-
 for (const seat of [SIDEBAR, HERO]) {
   test(`${seat} registers independently of the other directory seat`, (t) => {
     const { plugin } = loadClient()
-    const host = createHost([SETTINGS, seat])
+    const host = createHost([seat])
     t.after(() => host.ctx.dispose())
     plugin.apply(host.ctx)
-    const settings = host.registrations.get(SETTINGS)
-    assert.deepEqual([...host.registrations.keys()].sort(), [SETTINGS, seat].sort())
+    const otherSeat = seat === SIDEBAR ? HERO : SIDEBAR
+    assert.equal(host.registrations.size, 1)
     assert.equal(host.registrations.get(seat).meta.priority, -100)
     assert.equal(typeof host.registrations.get(seat).render, 'function')
-    host.slotsAvailable.remove(seat)
-    assert.deepEqual([...host.registrations.keys()], [SETTINGS])
-    host.slotsAvailable.set(seat, true)
-    const other = seat === SIDEBAR ? HERO : SIDEBAR
-    host.slotsAvailable.set(other, true)
-    assert.equal(host.registrations.size, 3)
-    assert.equal(host.registrations.get(seat).render, host.registrations.get(other).render)
-    assert.equal(host.registrations.get(SETTINGS), settings, 'directory lifecycle leaves settings mounted')
+    const prior = host.registrations.get(seat)
+    host.slotsAvailable.set(otherSeat, true)
+    assert.equal(host.registrations.size, 2)
+    assert.equal(host.registrations.get(seat).render, host.registrations.get(otherSeat).render)
+    host.slotsAvailable.remove(otherSeat)
+    assert.deepEqual([...host.registrations.keys()], [seat])
+    assert.equal(host.registrations.get(seat), prior, 'removing the other seat leaves this one mounted')
   })
 }
-
 test('optional better-sidebar attaches late and cleans up tabs and subscription on removal', (t) => {
   const { plugin } = loadClient()
   const host = createHost()
   t.after(() => host.ctx.dispose())
   plugin.apply(host.ctx)
-  const settings = host.registrations.get(SETTINGS)
+  const seat = host.registrations.get(HERO)
   const sidebar = betterSidebar()
   host.services.set('betterSidebar', sidebar)
   assert.deepEqual([...sidebar.tabs.keys()], ['dsh-remote:explorer', 'dsh-remote:file'])
@@ -460,7 +454,7 @@ test('optional better-sidebar attaches late and cleans up tabs and subscription 
   host.services.set('betterSidebar', sidebar)
   assert.equal(sidebar.tabs.size, 2)
   assert.equal(sidebar.subscribers.size, 1)
-  assert.equal(host.registrations.get(SETTINGS), settings)
+  assert.equal(host.registrations.get(HERO), seat)
   host.ctx.dispose()
   assert.equal(sidebar.tabs.size, 0)
   assert.equal(sidebar.subscribers.size, 0)
@@ -471,7 +465,7 @@ test('late sessions supply cwd and disposal restores host-side session fallback'
   const host = createHost()
   t.after(() => host.ctx.dispose())
   plugin.apply(host.ctx)
-  const settings = host.registrations.get(SETTINGS)
+  const seat = host.registrations.get(HERO)
   const sidebar = betterSidebar()
   host.services.set('betterSidebar', sidebar)
   sidebar.emit('before')
@@ -486,7 +480,7 @@ test('late sessions supply cwd and disposal restores host-side session fallback'
   host.services.set('sessions', sessionService('mirror/second'))
   sidebar.emit('current')
   assert.equal(requests.at(-1).url, '/dsh-remote/resolve-mirror?local=mirror%2Fsecond')
-  assert.equal(host.registrations.get(SETTINGS), settings, 'sessions hotplug leaves settings mounted')
+  assert.equal(host.registrations.get(HERO), seat, 'sessions hotplug leaves the directory seat mounted')
   // Let the stubbed fetch/json promises settle before test cleanup.
   await new Promise((resolve) => setImmediate(resolve))
 })
