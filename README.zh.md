@@ -81,6 +81,29 @@ DSH 的 Web 界面刻意只监听 `127.0.0.1`（CLI 为安全拒绝 `--host 0.0.
 
 ## 安装
 
+### dsh 版本兼容（安装门禁）
+
+dsh 在加载任何插件代码**之前**，先按本包自己的 `peerDependencies` 判定能否安装：
+所有 `@deepseek-ai/dsh*` peer 都必须满足当前 dsh 版本
+（`semver.satisfies(runtime, range, { includePrerelease: true })`）。不满足就报
+`incompatible-version` 并**什么都不装** —— 插件树根本没加载，代码再兼容也绕不过去。
+
+| dsh 运行时 | 能否安装 |
+|---|---|
+| `0.1.2-rc.1` … `0.1.7-rc.2` | ✅ |
+| `0.2.0-rc.2` 及后续 `0.2.x`（含官方 Desktop 当前捆绑版） | ✅ **v0.8.24** 起 |
+
+遇到 `installation rejected: Plugin dsh-remote@x.y.z is incompatible with dsh
+<版本>` 时，先升级 `dsh-remote`；
+`dsh plugin allow-version dsh-remote@x.y.z --dsh-version <版本> --accept-risk`
+也能放行，但那只是**接受崩溃/数据丢失风险**，不是解决兼容问题，属于最后手段。
+`test/peer-compat.test.js` 把这条门禁规则复刻成单测，避免以后加 dsh 版本线时漏改范围。
+
+> **安装提示：** 安装失败时依赖**仍会**写进 profile 的 `package.json`，于是重跑
+> `add` 会被判为 "Already up to date" 而不再登记进 `dsh.profile.bundles`
+> （表现成"装上了但没有挂载任何一行"）。先
+> `dsh plugin --profile <名字> remove dsh-remote`，再 `add`。
+
 ```bash
 dsh plugin add dsh-remote            # 添加 bundle
 ```

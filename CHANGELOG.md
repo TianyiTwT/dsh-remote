@@ -2,6 +2,56 @@
 
 All notable changes to **dsh-remote**.
 
+## 0.8.24 — 2026-09-29
+### 修复：dsh 0.2.x 上安装被直接拒绝（`incompatible-version`）——peer 范围只允许 0.1.x
+
+**现象**：在 dsh `0.2.0-rc.2`（官方 Desktop 当前捆绑的版本）上执行
+`dsh plugin add dsh-remote`（或桌面版插件管理器里安装）时，**什么都没装上**：
+
+```
+dsh: installation rejected: Plugin dsh-remote@0.8.23 is incompatible with dsh 0.2.0-rc.2:
+peerDependencies {"@deepseek-ai/dsh-tools":"^0.1.0-rc.6","@deepseek-ai/dsh-commands":"^0.1.0-rc.6",
+"@deepseek-ai/dsh-client-locale":"^0.1.2-rc.1","@deepseek-ai/dsh-system-prompt":"^0.1.0-rc.6",
+"@deepseek-ai/dsh-host-webserver":"^0.1.0-rc.6","@deepseek-ai/dsh-client-connection":"^0.1.2-rc.1",
+"@deepseek-ai/dsh-client-ui-renderer":"^0.1.2-rc.1"}
+dsh: nothing was installed.
+```
+
+- **根因：不是代码不兼容，而是清单（manifest）门禁。** 安装前 dsh 会调用
+  `@deepseek-ai/dsh-app-boot` 的 `evaluatePluginCompatibility()`：凡是
+  `peerDependencies` 里以 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-` 开头的项，
+  只要 `semver.satisfies(runtimeVersion, range, { includePrerelease: true })`
+  不成立，就判 `incompatible-version` 并**拒绝安装**（`@deepseek-ai/cordis`、
+  `@deepseek-ai/schemastery` 不在这条 gate 的扫描范围内）。
+  而 0.8.23 写的是 `^0.1.0-rc.6` / `^0.1.2-rc.1` —— caret 在 0.x 上锁死次版本，
+  `^0.1.x` 等价于 `<0.2.0`，所以 0.2.0-rc.2 **必然**被拒。
+  插件代码再兼容也没用：**插件树根本没加载**，`apply()` 一次都没执行。
+- **修复**：7 个 `@deepseek-ai/dsh-*` peer 改为双段范围，0.1.x 老用户不受影响：
+  `^0.1.0-rc.6 || ^0.2.0-rc.2`（host 四个）、
+  `^0.1.2-rc.1 || ^0.2.0-rc.2`（client 三个）。
+- **实测（隔离 `DSH_HOME` + npm 上的 `@deepseek-ai/dsh@0.2.0-rc.2` CLI，不碰在用实例）**：
+
+  | 步骤 | 0.8.23 | 0.8.24 |
+  |---|---|---|
+  | `dsh plugin --profile web add <pkg>` | ❌ `incompatible-version`，未安装 | ✅ 安装成功（bundle 已写入 profile） |
+  | `dsh web` 启动日志 | —（装不上） | ✅ 无 `failed to import` / `did not activate` |
+  | `/dsh-remote/status` | — | ✅ 200，`{"port":22,"connected":false,...}` |
+  | `/dsh-remote/machines`、`/forwards`、`/audit`、`/ssh-config`、`/update-check` | — | ✅ 全部 200 |
+  | client 半（`plugins/??dsh-remote/client.js`） | — | ✅ 200，含 `__ModuleLoader__` / `RemoteWorkspacePage` |
+
+- **新增 `test/peer-compat.test.js`**：把上面那条 gate 规则逐字复刻成单测
+  （`semver.satisfies(..., { includePrerelease: true })`），断言清单接受
+  0.1.2-rc.1 / 0.1.7-rc.2 / 0.2.0-rc.2 / 0.2.0 / 0.2.x，并拒绝 0.3.0 与 1.0.0。
+  下次加 dsh 版本线时若漏改范围，CI 先红，而不是等用户装不上。
+- **排查提示**：`dsh plugin add` 失败时依赖**仍会**写进 profile 的 `package.json`；
+  此时重跑 `add` 会被 pnpm 判为 "Already up to date" 而**不再**把该包登记进
+  `dsh.profile.bundles`，表现成"装上了但不生效"（`--dump-config` 里没有该行）。
+  先 `dsh plugin --profile <p> remove <pkg>` 再 `add`，或确认依赖与 bundles 两处都在。
+- **顺手修掉 `test/i18n.test.js` 的 CRLF 坑**：它按精确的 LF 文本锚点提取
+  `lib/client.js` 里的字典，Windows 检出（`core.autocrlf=true` → CRLF）下锚点匹配不到，
+  报出误导性的 `dictionary closing brace found` 而失败（Linux CI 是 LF，所以一直没暴露）。
+  与 `check.mjs` 一致先 `.replace(/\r\n/g, '\n')` 归一化后，全量 `npm test` 209/209 通过。
+
 ## 0.8.23 — 2026-09-28
 ### 性能修复：远程路径自动补全逐字符卡顿（issue #41，PR #42 by @GDWhisper）+ 机器身份硬化
 

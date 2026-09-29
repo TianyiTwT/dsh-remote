@@ -65,6 +65,31 @@ Real capture (host scrubbed to a placeholder):
 
 ## Install
 
+### dsh version compatibility
+
+dsh gates **installation** on this package's own `peerDependencies`, before any
+plugin code runs: every `@deepseek-ai/dsh*` peer has to satisfy the running dsh
+version (`semver.satisfies(runtime, range, { includePrerelease: true })`). A
+mismatch is reported as `incompatible-version` and **nothing is installed** — the
+plugin tree never loads, so no amount of code compatibility can work around it.
+
+| dsh runtime | install |
+|---|---|
+| `0.1.2-rc.1` … `0.1.7-rc.2` | ✅ |
+| `0.2.0-rc.2` and later `0.2.x` (incl. the official Desktop bundle) | ✅ since **v0.8.24** |
+
+If you see `installation rejected: Plugin dsh-remote@x.y.z is incompatible with
+dsh <version>`, upgrade `dsh-remote` first. `dsh plugin allow-version
+dsh-remote@x.y.z --dsh-version <version> --accept-risk` also unblocks the
+install, but that exemption accepts the crash/data-loss risk instead of
+resolving it — last resort. `test/peer-compat.test.js` mirrors the gate so a
+future dsh line cannot silently drop out of these ranges.
+
+> **Install note:** a failed install still records the dependency in the
+> profile's `package.json`, so a later `add` looks like a no-op and the package is
+> never registered in `dsh.profile.bundles` ("installed, but no row is mounted").
+> Run `dsh plugin --profile <name> remove dsh-remote` first, then `add` again.
+
 ### Official Desktop compatibility (experimental, unreleased)
 
 This branch adds a compatibility path for the **official**
