@@ -2,6 +2,44 @@
 
 All notable changes to **dsh-remote**.
 
+## 0.8.26 — 2026-09-29
+### UI（续 0.8.25）：干掉最后两个原生 `<select>`，修设置页控件被裁
+
+**动机**：用户截图反馈设置页「端口转发」一行被卡片裁掉（`本地→远端` 被挤成
+`本地→远`、`监听端口` 露出半截），而且那个下拉是**浏览器原生 select**——系统外观、
+选项蓝底高亮，完全跟不上 harness 主题。要求做成「像 DSH 选模型那样的菜单」。
+
+- **新增 `MenuSelect`（DSH 风格下拉）**：outline 按钮（当前值 + `▾`）打开 harness
+  的菜单材质浮层，选中项浅填充 + 尾部 `✓`，风格对齐 harness 的模型选择菜单。
+  浮层用 `position: fixed` 依按钮 rect 定位（下方放不下时向上翻），**不再被设置页
+  的滚动容器裁掉**，并带 Esc / 点击外部 / resize / scroll 关闭。
+  两处原生 `<select>` 全部替换：HostKey 模式、端口转发方向。
+  `MenuSelect` 之前插件里已经没有任何原生 `<select>`（`createElement('select')` 归零）。
+- **端口转发表单重排**：原来 6 个控件（含原生 select）挤在一行、总宽超出卡片 →
+  改成「方向 + 监听端口」一行、「目标主机 + 目标端口」一行、「自动重连 +
+  添加转发（右对齐主按钮）」一行，行内控件用 `flex: 0 1 <basis>` 保证换行而不是收缩裁切。
+- **更新模式改成分段控件**：`手动 / 自动 / 关闭` 原本是三个**没有 className 的裸
+  `button`**（只有内联样式，没有 hover/focus，也不像 harness 控件），改为与选择器
+  同一个 `.dsh-rw-seg` 分段控件；主机名前那行「添加机器 / 从 ~/.ssh/config 导入」
+  保持 ghost。
+- **ssh 别名勾选行**：`使用 ~/.ssh/config 别名（只存别名，不复制）` 原先走两列
+  `row()`（108px 标签列把整句折成三行、勾选框孤零零挂在右侧），改为勾选框 + 整行文字。
+- **选择器机器下拉统一**：原先自绘的 absolute 浮层（同样有被滚动容器裁的风险）
+  改为同一个 `MenuSelect`，并把机器地址作为右对齐 mono 提示；无机器时显示
+  「没有机器」caption 而不是空菜单。顺带删掉随之失效的 `mOpen`/`ddRef` 状态。
+- 修 `.dsh-rw-section-btn` 缺 focus-visible 样式（此前落到浏览器默认焦点环）。
+- **圆角 token 用错**：菜单浮层起初用了 `--dsw-radius-panel`，而它实际是 **28px**
+  （harness 给对话框用的角），套在 114px 宽的小菜单上整个圆成"药丸"。
+  改为 harness 菜单表面真正用的 `--dsw-radius-lg`（16px，见
+  `MenuSurface.module.css` 的 `.surface`）；右键菜单同样修正。
+  对话框仍用 `--dsw-radius-panel`（`Modal.module.css` 就是这么用的），
+  设置页卡片保持 28px（实测 harness 自身的白色面板同样用 28px）。
+
+**验证（隔离 DSH_HOME + `@deepseek-ai/dsh@0.2.0-rc.2`，Chrome CDP 截图）**：
+端口转发卡片一行内四个控件完整可见、无裁切；打开方向菜单渲染为
+`本地→远端 ✓ / 远端→本地` 的抬高浮层（`position: fixed`，未被滚动容器裁剪）。
+`npm test` 212/212、`node check.mjs` OK。
+
 ## 0.8.25 — 2026-09-29
 ### UI：工作目录选择器与设置页改用 DSH 自己的设计语言（配图反馈"有点丑"）
 
