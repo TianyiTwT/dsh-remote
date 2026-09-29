@@ -2,6 +2,22 @@
 
 All notable changes to **dsh-remote**.
 
+## 0.8.27 — 2026-09-29
+### 修复：菜单圆角与宽度（0.8.26 的"药丸"观感）
+
+用户反馈 0.8.26 的下拉"又太圆了"。两个原因，都修掉：
+
+- **圆角 token 仍不对**：0.8.26 用了 `--dsw-radius-lg`（16px），那是 harness
+  **全尺寸**菜单表面的角；两行高的小菜单属于 compact 表面，harness 给的是
+  `--dsw-radius-md`（12px，见 `MenuSurface.module.css` 的 `.compact`）。
+  改用 md（右键菜单同）。
+- **菜单比 harness 的下限还窄**：114px，而 `Menu.module.css` 的
+  `.list { min-width: 144px }` 是菜单的最低宽度——窄到 144px 以下，同样的
+  圆角占比就会失衡。菜单浮层现在至少 144px 宽。
+
+实测：菜单 152×80、圆角 12px，选中项仅 ✓、悬停项浅填充。
+`npm test` 212/212、`node check.mjs` OK。
+
 ## 0.8.26 — 2026-09-29
 ### UI（续 0.8.25）：干掉最后两个原生 `<select>`，修设置页控件被裁
 
